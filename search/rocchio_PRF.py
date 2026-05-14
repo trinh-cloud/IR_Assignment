@@ -1,6 +1,5 @@
-import math
-import math
 from collections import defaultdict
+import math
 
 class RocchioPRF:
     def __init__(self, indexer, alpha=1.0, beta=0.5):
@@ -58,7 +57,7 @@ class RocchioPRF:
         banned_tokens = set(original_tokens).union(self.indexer.stopwords).union(stemmed_stopwords)
         
         expanded_terms = self.extract_relevant_terms(top_docs, top_term_count, banned_tokens)
-        
+
         # Lặp query gốc 3 lần để đảm bảo BM25 giữ độ ưu tiên rất cao cho câu hỏi ban đầu (Alpha lớn)
         boosted_original_query = " ".join([query_text] * 3) 
         added_query_processed = " ".join(expanded_terms)
