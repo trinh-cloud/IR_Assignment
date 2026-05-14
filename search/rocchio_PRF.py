@@ -51,10 +51,16 @@ class RocchioPRF:
             "all", "any", "both", "each", "few", "more", "most", "other", "some", "such", "no", "nor", "not",
             "only", "own", "same", "so", "than", "too", "very", "s", "t", "can", "will", "just", "don", "should", "now"
         }
-        stemmed_stopwords = {self.indexer.stemmer.stem(w) for w in english_stopwords}
-        
         original_tokens = self.indexer.tokenize(query_text)
-        banned_tokens = set(original_tokens).union(self.indexer.stopwords).union(stemmed_stopwords)
+        banned_tokens = set(original_tokens).union(self.indexer.stopwords)
+        
+        # Lọc thêm từ stopwords phổ biến bằng hàm stem của processor trong indexer (nếu có)
+        try:
+            stemmed_stopwords = {self.indexer.processor.stemmer.stem(w) for w in english_stopwords}
+            banned_tokens = banned_tokens.union(stemmed_stopwords)
+        except AttributeError:
+            # Fallback nếu cấu trúc TextProcessor thay đổi
+            banned_tokens = banned_tokens.union(english_stopwords)
         
         expanded_terms = self.extract_relevant_terms(top_docs, top_term_count, banned_tokens)
 
