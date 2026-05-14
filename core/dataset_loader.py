@@ -1,66 +1,55 @@
-import ir_datasets
+import urllib.request
+import json
+import os
+import zipfile
 
 class SciFactLoader:
     """
-    Module xử lý trực tiếp bộ dữ liệu thông qua thư viện ir_datasets.
-    Tập trung tải cấu trúc dữ liệu của beir/scifact/test.
+    Module xử lý tải corpus trực tiếp từ HuggingFace/BEIR bằng custom script
+    tránh lỗi timeout của ir_datasets.
     """
     def __init__(self, dataset_name):
         self.dataset_name = dataset_name
-        self._dataset = None
+        self._docs = None
+        self._queries = None
+        self._qrels = None
 
-    def _get_dataset(self):
-        if self._dataset is None:
-            self._dataset = ir_datasets.load(self.dataset_name)
-        return self._dataset
+    def _download_and_load(self):
+        from datasets import load_dataset
+        
+        # Load corpus, queries, and qrels test from Hugging Face
+        # BEIR data on HF is usually Tevatron/beir or BeIR/scifact
+        
+        # We will use the direct BeIR datasets which are faster
+        print("[INFO] Downloading from Hugging Face...")
+        corpus = load_dataset("BeIR/scifact", "corpus", split="corpus")
+        queries = load_dataset("BeIR/scifact", "queries", split="queries")
+        qrels = load_dataset("BeIR/scifact-qrels", split="test")
+
+        self._docs = {doc['_id']: {"title": doc['title'], "text": doc['text']} for doc in corpus}
+        self._queries = {q['_id']: q['text'] for q in queries}
+        
+        self._qrels = {}
+        for qrel in qrels:
+            if qrel['score'] > 0:
+                qid = str(qrel['query-id'])
+                doc_id = str(qrel['corpus-id'])
+                if qid not in self._qrels:
+                    self._qrels[qid] = set()
+                self._qrels[qid].add(doc_id)
 
     def parse_docs(self):
-        """
-        Lấy tài liệu dạng văn bản liên tiếp (gộp Title và Text).
-        Trả ra: {doc_id: "title text"}
-        """
-        dataset = self._get_dataset()
-        docs = {}
-        for doc in dataset.docs_iter():
-            # Scifact document trong ir_datasets có trường doc_id, title, text
-            docs[doc.doc_id] = f"{doc.title} {doc.text}"
-        return docs
+        if self._docs is None: self._download_and_load()
+        return {doc_id: f"{data['title']} {data['text']}" for doc_id, data in self._docs.items()}
 
     def parse_docs_fields(self):
-        """
-        Lấy tài liệu nhưng chia thành các trường để dùng cho BM25F.
-        Trả ra: {doc_id: {'title': str, 'text': str}}
-        """
-        dataset = self._get_dataset()
-        docs = {}
-        for doc in dataset.docs_iter():
-            docs[doc.doc_id] = {
-                'title': doc.title,
-                'text': doc.text
-            }
-        return docs
+        if self._docs is None: self._download_and_load()
+        return self._docs
 
     def parse_queries(self):
-        """
-        Lấy danh sách các câu truy vấn.
-        Trả ra: {query_id: text}
-        """
-        dataset = self._get_dataset()
-        queries = {}
-        for query in dataset.queries_iter():
-            queries[query.query_id] = query.text
-        return queries
+        if self._queries is None: self._download_and_load()
+        return self._queries
 
     def parse_qrels(self):
-        """
-        Lấy Ground-truth để đánh giá (chỉ lấy các tài liệu có relevance > 0).
-        Trả ra: {query_id: set([doc1, doc2])}
-        """
-        dataset = self._get_dataset()
-        qrels = {}
-        for qrel in dataset.qrels_iter():
-            if qrel.relevance > 0:
-                if qrel.query_id not in qrels:
-                    qrels[qrel.query_id] = set()
-                qrels[qrel.query_id].add(qrel.doc_id)
-        return qrels
+        if self._qrels is None: self._download_and_load()
+        return self._qrels
