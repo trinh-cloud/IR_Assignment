@@ -16,6 +16,27 @@ venv.bak/
 .DS_Store
 Thumbs.db
 
+# LaTeX build files
+*.aux
+*.bbl
+*.blg
+*.brf
+*.idx
+*.ilg
+*.ind
+*.lof
+*.log
+*.lot
+*.out
+*.toc
+*.nav
+*.snm
+*.synctex.gz
+*.fdb_latexmk
+*.fls
+*.xdv
+
 # Do not ignore CSV reports if you want teammates to see the results
 # *.csv
 study/
+*.pdf

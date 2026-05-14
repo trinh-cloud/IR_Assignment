@@ -1,0 +1,57 @@
+\begin{titlepage}
+\thispagestyle{empty}
+
+\newgeometry{left=3cm,right=2cm,top=2.2cm,bottom=2.2cm}
+
+\begin{center}
+
+    {\bfseries\large HỌC VIỆN CÔNG NGHỆ BƯU CHÍNH VIỄN THÔNG}\\[2pt]
+    {\bfseries\large (PTIT)}\\[6pt]
+    {\bfseries\large KHOA TRÍ TUỆ NHÂN TẠO}\\[4pt]
+    {\normalsize Môn: Hệ thống truy xuất thông tin}
+    
+    \vspace{1.1cm}
+
+    % Ensure graphicx package is loaded in your preamble with \usepackage{graphicx}
+    {\includegraphics[width=0.19\textwidth]{./logo_PTIT.png}}
+
+    \vspace{1.3cm}
+
+    {\bfseries\Large BÁO CÁO BÀI TẬP LỚN}
+
+    \vspace{1.4cm}
+
+    {\bfseries\fontsize{17pt}{22pt}\selectfont
+    Hệ thống truy xuất thông tin\\[4pt]
+    trên tập dữ liệu y khoa SciFact}
+
+    \vspace{2.2cm}
+
+    \begin{tabular}{@{}ll@{}}
+        \textbf{Giảng viên hướng dẫn:} & \textbf{ThS. Phạm Đức Cường} \\[11pt]
+        \textbf{Nhóm thực hiện:} & \textbf{Nhóm 1} \\[11pt]
+        \textbf{Thành viên:} & 
+        \begin{tabular}[t]{@{}l@{}}
+            \textbf{Trần Đức Trình} --- B22DCKH122 \\
+            \textbf{Nguyễn Ngọc Quang} --- B22DCKH092
+        \end{tabular}
+    \end{tabular}
+    
+    \vfill
+
+    {\bfseries\large Hà Nội --- \the\year}
+\end{center}
+
+\begin{tikzpicture}[remember picture, overlay]
+    \draw[line width=2pt]
+        ($(current page.north west) + (2.5cm,-1.5cm)$)
+        rectangle
+        ($(current page.south east) + (-1.5cm,1.5cm)$);
+    \draw[line width=1pt]
+        ($(current page.north west) + (2.65cm,-1.65cm)$)
+        rectangle
+        ($(current page.south east) + (-1.65cm,1.65cm)$);
+\end{tikzpicture}
+
+\restoregeometry
+\end{titlepage}

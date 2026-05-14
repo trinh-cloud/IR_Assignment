@@ -1,0 +1,268 @@
+\documentclass[12pt, a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[vietnamese]{babel}
+\usepackage{mathptmx}
+\usepackage{setspace}
+\setstretch{1.25}
+\usepackage[left=3cm, right=2cm, top=2cm, bottom=2cm]{geometry}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{tikz}
+\usetikzlibrary{calc}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+
+\usepackage{array}
+\usepackage{mathtools}
+
+\renewcommand{\refname}{Tài liệu tham khảo}
+
+\newcommand{\formulaNote}[1]{\vspace{-0.5em}\\
+  \hspace{-1.2em}\begin{minipage}{0.93\linewidth}
+  \footnotesize\textit{
+    \begin{tabular}{@{}l@{}}
+    #1
+    \end{tabular}
+  }
+  \end{minipage}\vspace{1em}}
+
+\begin{document}
+
+\input{Bia.tex}
+
+\newpage
+\tableofcontents
+\newpage
+\listoftables
+\newpage
+
+\section{Tổng quan bài toán và hệ thống}
+
+\subsection{Bài toán truy xuất thông tin khoa học}
+Truy xuất thông tin là bài toán tìm kiếm văn bản phù hợp nhất với truy vấn từ một tập tài liệu. Trong bài này, mục tiêu là chọn ra tài liệu khoa học phù hợp với nhu cầu truy cứu của người dùng.
+
+Báo cáo giải quyết bài toán: cho truy vấn $Q$, tìm và sắp xếp tập tài liệu khoa học $D = \{d_1, d_2, \ldots\}$. Tài liệu trả về cần chứa thông tin phục vụ cho người đọc.
+
+\subsection{Giới thiệu bộ dữ liệu SciFact}
+Báo cáo sử dụng bộ dữ liệu \textbf{SciFact}. SciFact là benchmark để đánh giá các hệ truy xuất và kiểm chứng thông tin khoa học tự động.
+\begin{itemize}
+    \item \textbf{Documents}: 5.183 bài báo lĩnh vực y sinh. Mỗi bài có trường \textit{title}, \textit{abstract} và metadata liên quan.
+    \item \textbf{Queries}: 300 phát biểu khoa học tự nhiên, đóng vai trò câu hỏi hoặc giả định cần tìm tài liệu xác nhận hoặc phủ định.
+    \item \textbf{Qrels}: Với từng truy vấn, dữ liệu gán nhãn tài liệu là \textit{supports}, \textit{refutes} hoặc \textit{not\_enough\_info}.
+\end{itemize}
+
+Tập SciFact tải qua thư viện \texttt{ir\_datasets}.
+
+\subsection{Tổng quan quy trình hệ thống}
+Hệ thống thực hiện theo các bước sau:
+\begin{enumerate}
+    \item \textbf{Text preprocessing:} phân tách tài liệu thành tokens, chuyển thành lowercase, loại bỏ stopwords, áp dụng stemming.
+    \item \textbf{Inverted indexing:} xây dựng tập từ vựng, ánh xạ các term đến postings list gồm danh sách doc-id.
+    \item \textbf{Retrieval \& ranking:} tính điểm cho từng tài liệu so với truy vấn.
+    \item \textbf{Evaluation:} đánh giá hiệu quả retrieval bằng các metric như precision, recall, MAP.
+\end{enumerate}
+
+\section{Kỹ thuật truy xuất áp dụng}
+
+\subsection{Thuật toán BM25}
+BM25 là mô hình xếp hạng thuộc nhóm probabilistic. Mô hình này giải quyết hai vấn đề thường gặp của TF: (1) điểm số bị chi phối khi một thuật ngữ xuất hiện quá nhiều lần (term frequency saturation); (2) tài liệu dài được ưu tiên (length normalization). Tham số $k_1$ điều chỉnh mức độ bão hòa TF, còn $b$ kiểm soát ảnh hưởng của độ dài tài liệu.
+\begin{equation}
+    \text{score}(D, Q) = \sum_{t \in Q} \text{IDF}(t) \cdot \frac{tf_{t,D} \cdot (k_1 + 1)}{tf_{t,D} + k_1 \cdot \left(1 - b + b \cdot \frac{L_D}{L_{ave}}\right)}
+\end{equation}
+\formulaNote{
+$L_D$: độ dài tài liệu $D$ \\
+$L_{ave}$: độ dài trung bình của toàn bộ tập tài liệu \\
+$\text{IDF}(t) = \log \frac{N - df_t + 0.5}{df_t + 0.5}$: nghịch đảo tần suất thuật ngữ $t$ \\
+$N$: tổng số tài liệu \\
+$df_t$: số tài liệu chứa $t$ \\
+}
+
+\begin{algorithm}[H]
+\caption{BM25\_ScoreComputation}\label{alg:bm25}
+\begin{algorithmic}[1]
+\State $Scores \gets$ dictionary rỗng
+\For{$t \in Q$}
+    \If{$t \in Index$}
+        \State $P\_list \gets Index[t]$
+        \State $df_t \gets |P\_list|$
+        \State $IDF \gets \log \left( \frac{N - df_t + 0.5}{df_t + 0.5} \right)$
+        \For{mỗi $(d, tf)$ trong $P\_list$}
+            \State $L_d \gets$ độ dài tài liệu $d$
+            \State $norm \gets 1 - b + b \cdot \frac{L_d}{L_{ave}}$
+            \State $score \gets IDF \cdot \frac{tf \cdot (k_1 + 1)}{tf + k_1 \cdot norm}$
+            \If{$d \notin Scores$}
+                \State $Scores[d] \gets score$
+            \Else
+                \State $Scores[d] \gets Scores[d] + score$
+            \EndIf
+        \EndFor
+    \EndIf
+\EndFor
+\State \Return $Scores$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Cấu trúc đa trường BM25F}
+BM25F mở rộng BM25 cho tài liệu có nhiều trường như title, abstract, body. Các trường này có độ dài và độ quan trọng khác nhau. Hệ số $w_f$ điều chỉnh trọng số cho từng trường. Tham số $b_f$ dùng để chuẩn hóa độ dài riêng từng trường \cite{manning2008}.
+\begin{equation}
+    \tilde{tf}_{t,D} = \sum_{f} w_f \cdot \frac{tf_{t,D,f}}{1 - b_f + b_f \cdot \frac{L_{D,f}}{L_{ave,f}}}
+\end{equation}
+\formulaNote{
+$tf_{t,D,f}$: tần suất $t$ trong trường $f$ của $D$ \\
+$w_f$: trọng số trường $f$ \\
+$b_f$: tham số độ dài trường $f$ \\
+$L_{D,f}$: độ dài trường $f$ tài liệu $D$ \\
+$L_{ave,f}$: trung bình chiều dài trường $f$ \\
+}
+
+\begin{algorithm}[H]
+\caption{BM25F\_DocumentRanking}\label{alg:bm25f}
+\begin{algorithmic}[1]
+\State $Scores \gets$ dictionary rỗng
+\For{$t \in Q$}
+    \If{$t \in Index\_F$}
+        \State $df_t \gets$ số tài liệu chứa $t$
+        \State $IDF \gets \log \left( \frac{N - df_t + 0.5}{df_t + 0.5} \right)$
+        \For{mỗi $(d, tf\_dict)$ trong $Index\_F[t]$}
+            \State $\tilde{tf} \gets 0$
+            \For{$f$ trong tập các trường}
+                \State $L_{d,f} \gets$ độ dài trường $f$ của $d$
+                \State $\tilde{tf} \gets \tilde{tf} + W[f] \cdot \frac{tf\_dict[f]}{1 - B[f] + B[f] \cdot \frac{L_{d,f}}{L_{ave,f}}}$
+            \EndFor
+            \State $score \gets IDF \cdot \frac{\tilde{tf} \cdot (k_1 + 1)}{\tilde{tf} + k_1}$
+            \If{$d \notin Scores$}
+                \State $Scores[d] \gets score$
+            \Else
+                \State $Scores[d] \gets Scores[d] + score$
+            \EndIf
+        \EndFor
+    \EndIf
+\EndFor
+\State \Return $Scores$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Pseudo-relevance feedback (PRF)}
+PRF sử dụng Rocchio để mở rộng truy vấn. Lấy $K$ tài liệu đứng đầu làm giả định relevant. Rocchio điều chỉnh vector truy vấn theo hướng trung bình các vector này. Tham số $\alpha$ kiểm soát tỷ lệ truy vấn gốc, $\beta$ kiểm soát phần phản hồi \cite{manning2008}.
+\begin{equation}
+    \vec{q}_m = \alpha \vec{q}_0 + \frac{\beta}{|D_r|} \sum_{\vec{d} \in D_r} \vec{d}
+\end{equation}
+\formulaNote{
+$\vec{q}_0$: vector truy vấn gốc \\
+$D_r$: tập tài liệu top \\
+$\alpha$: trọng số truy vấn gốc \\
+$\beta$: trọng số phản hồi \\
+$\vec{d}$: vector tài liệu $d$ \\
+}
+
+\begin{algorithm}[H]
+\caption{Rocchio\_QueryExpansion\_PRF}\label{alg:rocchio}
+\begin{algorithmic}[1]
+\State $Results \gets$ kết quả truy vấn ban đầu với $Q$
+\State $D_{top} \gets$ danh sách $K$ tài liệu top từ $Results$
+\State $Centroid \gets 0$
+\For{mỗi $d \in D_{top}$}
+    \State $Centroid \gets Centroid +$ vector đặc trưng của $d$
+\EndFor
+\If{$|D_{top}| > 0$}
+    \State $Centroid \gets Centroid / |D_{top}|$
+\EndIf
+\State $Q_{orig} \gets$ vector hóa truy vấn $Q$
+\State $Q_m \gets \alpha \cdot Q_{orig} + \beta \cdot Centroid$
+\State $Q_m \gets$ chuẩn hóa vector $Q_m$ nếu cần
+\State $Results_{PRF} \gets$ truy vấn lại với $Q_m$
+\State \Return $Results_{PRF}$
+\end{algorithmic}
+\end{algorithm}
+
+\section{Thực nghiệm và đánh giá}
+
+\subsection{Cài đặt hệ thống}
+\textbf{Các bước cài đặt hệ thống:}
+\begin{enumerate}
+    \item \textbf{Tải dữ liệu:} sử dụng thư viện \texttt{ir\_datasets} để lấy tập dữ liệu.
+    \item \textbf{Text preprocessing:}
+        \begin{itemize}
+            \item \textbf{Tokenization:} tách text thành tokens bằng regex.
+            \item \textbf{Lowercasing:} đưa toàn bộ text về chữ thường.
+            \item \textbf{Loại bỏ stopwords:} loại bỏ stopwords với \texttt{nltk}.
+            \item \textbf{Porter stemming:} đưa từ về gốc bằng Porter.
+        \end{itemize}
+    \item \textbf{Xây dựng inverted index:}
+        \begin{itemize}
+            \item Lưu mỗi term với: \texttt{Index[term]} $\rightarrow$ danh sách $(doc\_id, tf)$.
+            \item Với BM25F: từng field lưu postings riêng: \texttt{Index\_F[term]} $\rightarrow$ danh sách $(doc\_id, tf\_dict)$, $tf\_dict = \{\text{field}: \text{tf\_count}\}$.
+            \item Dùng dictionary lồng để truy vấn $O(1)$.
+        \end{itemize}
+    \item \textbf{Chạy các thuật toán ranking}: BM25, BM25F, PRF với Rocchio.
+\end{enumerate}
+
+\vspace{1em}
+\textbf{Các siêu tham số:}
+\begin{align*}
+    &k_1 = 1.2,\quad b = 0.75 \qquad \text{(BM25)}\\
+    &w_{\text{title}} = 2.0,\quad w_{\text{text}} = 1.0 \qquad \text{(BM25F)}\\
+    &\alpha = 1.0,\quad \beta = 0.3,\quad K = 10,\quad T = 5 \qquad \text{(PRF)}
+\end{align*}
+
+\subsection{Các chỉ số đánh giá}
+Hệ thống sử dụng 3 chỉ số sau:
+\begin{itemize}
+    \item \textbf{Precision@K (P@K)}: tỷ lệ tài liệu liên quan trong $K$ kết quả đầu.
+    \begin{equation}
+        \text{P@}K = \frac{\text{số tài liệu liên quan trong top-}K}{K}
+    \end{equation}
+
+    \item \textbf{Recall@K}: số tài liệu liên quan thu được chia cho tổng số tài liệu liên quan thực tế.
+    \begin{equation}
+        \text{Recall@}K = \frac{\text{số tài liệu liên quan trong top-}K}{\text{tổng số tài liệu liên quan}}
+    \end{equation}
+
+    \item \textbf{Mean Average Precision (MAP)}: trung bình độ chính xác tại các vị trí tài liệu liên quan trên toàn bộ truy vấn.
+    \begin{equation}
+        \text{MAP} = \frac{1}{|Q|} \sum_{q=1}^{|Q|} \frac{1}{m_q} \sum_{k=1}^{m_q} \text{P@}k
+    \end{equation}
+    \formulaNote{
+        $|Q|$: tổng số truy vấn \\
+        $m_q$: số tài liệu liên quan với truy vấn $q$ \\
+        $\text{P@}k$: độ chính xác tại vị trí liên quan thứ $k$ \\
+    }
+\end{itemize}
+
+\subsection{Kết quả thực nghiệm}
+Bảng \ref{tab:results} ghi lại kết quả trên bộ SciFact:
+
+\begin{table}[ht]
+\centering
+\caption{Kết quả đánh giá trên tập SciFact}
+\label{tab:results}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Configuration} & \textbf{P@1} & \textbf{P@10} & \textbf{Recall@10} & \textbf{MAP} \\
+\midrule
+C1: BM25 standard      & 0.5600       & 0.0907        & 0.8202             & 0.6480       \\
+C2: BM25F              & 0.5633       & 0.0907        & 0.8202             & 0.6524       \\
+C3: BM25 + PRF         & 0.5133       & 0.0907        & 0.8203             & 0.6139       \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+C2 (BM25F) cho MAP đạt 0.6524, nhỉnh hơn C1 (0.6480). Mức tăng là 0.0044. Giá trị này có được nhờ trọng số title $w_{title}=2.0$ làm tăng ảnh hưởng các term quan trọng từ title. P@1 ở C2 cũng cao hơn C1.
+
+C3 (BM25 + PRF) xảy ra hiện tượng query drift: recall@10 tăng lên (0.8203) nhưng P@1 giảm xuống 0.5133, MAP giảm còn 0.6139. Vector truy vấn bị kéo lệch bởi các term nhiễu từ phần body.
+
+\section{Kết luận}
+BM25F với trọng số title $w_{title}=2.0$ đạt MAP cao nhất (0.6524), xác nhận rằng chia trường và tăng trọng số title giúp nâng độ chính xác. PRF (Rocchio) đẩy recall@10 lên nhưng làm giảm MAP và P@1 vì đưa thêm các term nhiễu vào truy vấn, xảy ra query drift.
+
+Tóm lại, mở rộng truy vấn cần chọn lọc và gán trọng số hợp lý cho các term; nếu dùng PRF mà không kiểm soát, chất lượng kết quả top sẽ giảm. Nghiên cứu này còn giới hạn ở một bộ dữ liệu và chưa thử các kỹ thuật lọc term cho PRF. Hướng tiếp theo là thử nghiệm lọc hoặc đánh điểm term cho PRF, tối ưu trọng số field-weight, đánh giá trên nhiều bộ dữ liệu khác.
+
+\begin{thebibliography}{9}
+\bibitem{manning2008} 
+Christopher D. Manning, Prabhakar Raghavan, and Hinrich Schütze. 
+\textit{Introduction to Information Retrieval}. 
+Cambridge University Press, 2008.
+\end{thebibliography}
+
+\end{document}
