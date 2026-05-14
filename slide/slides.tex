@@ -1,0 +1,370 @@
+
+\documentclass[10pt,aspectratio=169]{beamer}
+
+% Sử dụng theme màu xanh nhẹ nhàng
+\usetheme{Madrid}
+\definecolor{ptitblue}{RGB}{40,90,170}
+\definecolor{ptitblue2}{RGB}{100,160,220}
+\definecolor{lightblue}{RGB}{225,236,254}
+\definecolor{tableblue}{RGB}{230,242,255}
+
+% Các tông xanh chủ đạo
+\setbeamercolor{structure}{fg=ptitblue}
+\setbeamercolor{frametitle}{fg=white,bg=ptitblue}
+\setbeamercolor{title}{fg=white,bg=ptitblue}
+\setbeamercolor{block title}{fg=white,bg=ptitblue}
+\setbeamercolor{block body}{fg=black,bg=lightblue}
+\setbeamercolor{footer}{fg=white,bg=ptitblue}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T5]{fontenc}
+\usepackage[vietnamese]{babel}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{tcolorbox}
+\usepackage{array}
+\usepackage{tikz}
+\usepackage{colortbl}
+\usepackage{xcolor}
+
+% --- Patch for Đ/đ in T5 Vietnamese font ---
+\usepackage{newunicodechar}
+\newunicodechar{Đ}{\DJ}
+\newunicodechar{đ}{\dj}
+\DeclareUnicodeCharacter{0110}{\DJ}
+\DeclareUnicodeCharacter{0111}{\dj}
+
+% --- Patch cho table alternate row colors với xanh nhạt ---
+\definecolor{rowblue1}{RGB}{230,242,255}
+\definecolor{rowblue2}{RGB}{255,255,255}
+\newcommand{\rowcolorsalt}{\rowcolors{2}{rowblue1}{rowblue2}}
+
+% --- Custom footer: chỉ hiện 'Nhóm 1' bên trái và đếm số trang (slide) bên phải ---
+\setbeamertemplate{footline}{
+  \leavevmode%
+  \hbox{%
+    \begin{beamercolorbox}[wd=.5\paperwidth,ht=2.5ex,dp=1.0ex,left]{footer}
+      \hspace{1.5em}Nhóm 1
+    \end{beamercolorbox}
+    \begin{beamercolorbox}[wd=.5\paperwidth,ht=2.5ex,dp=1.0ex,right]{footer}
+      \insertframenumber{} / \inserttotalframenumber\hspace{1.5em}
+    \end{beamercolorbox}
+  }%
+}
+
+\setbeamertemplate{navigation symbols}{}
+
+\title[Đồ án IR]{Xây dựng hệ thống truy xuất thông tin trên tập dữ liệu SciFact}
+\author{Trần Đức Trình -- B22DCKH122 \and Nguyễn Ngọc Quang -- B22DCKH092}
+\institute{Học viện Công nghệ Bưu chính Viễn thông}
+\date{\the\year}
+
+\begin{document}
+
+% --- Trang bìa đơn giản, chỉ tên đề tài (nhỏ) + thành viên + giảng viên ---
+\begin{frame}[plain]
+    \centering
+
+    % Tên đề tài (nhỏ hơn, đơn giản)
+    {\bfseries\color{ptitblue}\Large Xây dựng hệ thống truy xuất thông tin trên tập dữ liệu SciFact}
+
+    \vspace{1.5cm}
+
+    % Giảng viên hướng dẫn
+    {\normalsize \textbf{GVHD:} ThS. Phạm Đức Cường}
+
+    \vspace{0.7cm}
+
+    % Thành viên nhóm
+    {\normalsize 
+        \textbf{Nhóm 1:}\\[2pt]
+        Trần Đức Trình -- B22DCKH122\\
+        Nguyễn Ngọc Quang -- B22DCKH092
+    }
+\end{frame}
+
+\begin{frame}{Tổng quan}
+\begin{tcolorbox}[colback=lightblue,colframe=ptitblue,title=Vấn đề cần giải quyết]
+\smallskip
+\textbf{Bài toán}: Tìm kiếm và xếp hạng tập tài liệu $D$ theo mức độ liên quan với truy vấn $Q$.
+\end{tcolorbox}
+
+\vspace{.7em}
+\begin{columns}[T,onlytextwidth]
+\column{0.5\textwidth}
+\begin{itemize}
+\item 5.183 tài liệu khoa học y sinh (SciFact)
+\item 300 truy vấn dạng phát biểu khoa học
+\end{itemize}
+
+\column{0.5\textwidth}
+\begin{itemize}
+\item So sánh: \textbf{BM25}, \textbf{BM25F}, \textbf{PRF-Rocchio}
+\item Các chỉ số: Precision@K, Recall@K, MAP
+\end{itemize}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Pipeline}
+\vspace{-0.5em}
+\centering
+\begin{tikzpicture}[node distance=2.2cm,>=latex]
+\tikzstyle{stage}=[rectangle,draw=ptitblue,fill=lightblue,rounded corners=3pt,minimum height=1.03cm,minimum width=3.3cm,align=center,font=\normalsize]
+\node[stage] (raw) {Raw Data};
+\node[stage,right of=raw,xshift=1.5cm] (pre) {Preprocessing};
+\node[stage,right of=pre,xshift=1.5cm] (idx) {Indexing \& Ranking};
+\node[stage,right of=idx,xshift=1.5cm] (eva) {Evaluation};
+
+\draw[->,thick, ptitblue] (raw) -- (pre);
+\draw[->,thick, ptitblue] (pre) -- (idx);
+\draw[->,thick, ptitblue] (idx) -- (eva);
+\end{tikzpicture}
+
+\vspace{1em}
+\begin{columns}[T,onlytextwidth]
+\column{0.5\textwidth}
+\begin{itemize}
+    \item Tokenize, stopword removal, stemming
+    \item Inverted Index, Postings list
+\end{itemize}
+\column{0.5\textwidth}
+\begin{itemize}
+    \item BM25, BM25F, PRF-Rocchio
+    \item Evaluation: Precision@K, Recall@K, MAP
+\end{itemize}
+\end{columns}
+\end{frame}
+
+% ---------- BM25 Theory Slide (Slide 4) ----------
+\begin{frame}{BM25}
+\begin{tcolorbox}[colback=lightblue,boxrule=0pt]
+\textbf{Giới thiệu:}
+BM25 là phương pháp xếp hạng dựa trên mô hình xác suất cho truy xuất văn bản. Ý tưởng chính là đánh giá mức độ liên quan giữa tài liệu $D$ và truy vấn $Q$ thông qua tần suất xuất hiện từ truy vấn trong tài liệu, đồng thời chuẩn hóa độ dài tài liệu.
+\end{tcolorbox}
+
+\vspace{0.7em}
+
+\textbf{Công thức tính điểm:}
+\[
+\text{score}(D, Q) = \sum_{t \in Q}
+\log\left(\frac{N-df_t+0.5}{df_t+0.5}\right) \cdot
+\frac{tf_{t,D} \cdot (k_1 + 1)}{tf_{t,D} + k_1 \cdot \left[1-b+b\frac{L_D}{L_{ave}}\right]}
+\]
+\begin{itemize}
+    \item $tf_{t,D}$: Tần suất từ $t$ trong tài liệu $D$.
+    \item $N$: Tổng số tài liệu, $df_t$: số tài liệu chứa $t$.
+    \item $k_1$: Tham số bão hòa TF (thường 1.2--2.0), $b$: Tham số chuẩn hóa độ dài (thường 0.75).
+    \item $L_D$, $L_{ave}$: Độ dài tài liệu $D$ và độ dài trung bình.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{BM25 Pseudocode}
+\vspace{-0.7em}
+\scriptsize
+\begin{tcolorbox}[colback=lightblue,colframe=ptitblue,boxrule=0.4pt,title=BM25 Algorithm (Pseudocode)]
+\vspace{-1em}
+\begin{algorithm}[H]
+\begin{algorithmic}[1]
+\State Initialize \texttt{Scores} as an empty dictionary
+\For{each term $t$ in query $Q$}
+    \If{$t$ exists in index}
+        \State Retrieve postings and $df_t$
+        \State Compute $IDF_t = \log \left(\frac{N-df_t+0.5}{df_t+0.5}\right)$
+        \For{each document $d$ in postings}
+            \State $tf =$ term frequency of $t$ in $d$
+            \State $norm = 1 - b + b \frac{L_d}{L_{ave}}$
+            \State $score = IDF_t \times \frac{tf \times (k_1 + 1)}{tf + k_1 \cdot norm}$
+            \State Add $score$ to \texttt{Scores[$d$]}
+        \EndFor
+    \EndIf
+\EndFor
+\State \Return \texttt{Scores}
+\end{algorithmic}
+\end{algorithm}
+\end{tcolorbox}
+\normalsize
+\end{frame}
+
+% ---------- BM25F Theory Slide (Slide 6) ----------
+\begin{frame}{BM25F}
+\begin{tcolorbox}[colback=lightblue,boxrule=0pt]
+\textbf{Giới thiệu:}
+BM25F là phiên bản mở rộng của BM25, áp dụng cho tài liệu có nhiều trường, ví dụ như ``title'', ``abstract''. Thuật toán gán trọng số cho từng trường để tận dụng thông tin cấu trúc của tài liệu.
+\end{tcolorbox}
+
+\vspace{0.6em}
+\textbf{Công thức:}
+\[
+\tilde{tf}_{t,D} = \sum_{f} w_f \cdot \frac{tf_{t,D,f}}{1-b_f+b_f\frac{L_{D,f}}{L_{ave,f}}}
+\]
+\[
+\text{score}(D, Q) = \sum_{t\in Q}
+\log\left(\frac{N-df_t+0.5}{df_t+0.5}\right) \cdot
+\frac{\tilde{tf}_{t,D} \cdot (k_1+1)}{\tilde{tf}_{t,D}+k_1}
+\]
+\vspace{-0.5em}
+\begin{itemize}
+    \item $w_f$: Trọng số của field $f$ (ví dụ $w_{title}$, $w_{abstract}$).
+    \item $tf_{t,D,f}$: Tần suất $t$ ở field $f$ của tài liệu $D$.
+    \item $b_f$: Tham số chuẩn hóa độ dài cho từng field.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{BM25F Pseudocode}
+\scriptsize
+\begin{tcolorbox}[colback=lightblue,colframe=ptitblue,boxrule=0.4pt,title=BM25F Algorithm (Pseudocode)]
+\vspace{-1em}
+\begin{algorithm}[H]
+\begin{algorithmic}[1]
+\State Initialize \texttt{Scores} as empty map
+\For{each term $t$ in $Q$}
+    \If{$t$ in index}
+        \State Compute $IDF_t$
+        \For{each document $d$ containing $t$}
+            \State $\tilde{tf} \leftarrow$ 0
+            \For{each field $f$}
+                \State $\tilde{tf} \mathrel{+}= w_f \cdot$ normalized tf of $t$ in $f$ of $d$
+            \EndFor
+            \State $score \leftarrow IDF_t \times \frac{\tilde{tf} (k_1+1)}{\tilde{tf} + k_1}$
+            \State Add $score$ to \texttt{Scores[$d$]}
+        \EndFor
+    \EndIf
+\EndFor
+\State \Return \texttt{Scores}
+\end{algorithmic}
+\end{algorithm}
+\end{tcolorbox}
+\normalsize
+\end{frame}
+
+% ---------- PRF-Rocchio Theory Slide (Slide 8) ----------
+\begin{frame}{PRF-Rocchio}
+\begin{tcolorbox}[colback=lightblue,boxrule=0pt]
+\textbf{Giới thiệu:}
+PRF (Pseudo Relevance Feedback) với Rocchio là phương pháp mở rộng truy vấn bằng cách tận dụng các tài liệu top-$K$ được trả về từ kết quả ban đầu, giả sử chúng là tài liệu liên quan. Ý tưởng: truy vấn mới = truy vấn gốc + thông tin lấy từ tài liệu liên quan.
+\end{tcolorbox}
+
+\vspace{0.7em}
+\textbf{Công thức Rocchio:}
+\[
+\vec{q}_m = \alpha\vec{q}_0 + \frac{\beta}{|D_r|}\sum_{\vec{d}\in D_r}\vec{d}
+\]
+\begin{itemize}
+    \item $\vec{q}_0$: Truy vấn gốc dạng vector.
+    \item $D_r$: Tập các tài liệu top-$K$.
+    \item $\alpha$: Trọng số giữ độ trung thành truy vấn gốc.
+    \item $\beta$: Trọng số mở rộng.
+\end{itemize}
+\vspace{0.3em}
+\textbf{Lưu ý:} Nếu top-$K$ chứa nhiễu, có thể gây \textit{Query Drift.}
+\end{frame}
+
+\begin{frame}{PRF-Rocchio Pseudocode}
+\scriptsize
+\begin{tcolorbox}[colback=lightblue,colframe=ptitblue,boxrule=0.4pt,title=PRF-Rocchio Algorithm (Pseudocode)]
+\vspace{-1em}
+\begin{algorithm}[H]
+\begin{algorithmic}[1]
+\State $R \leftarrow$ top-$K$ docs from $D$ using $q_0$
+\State $centroid \leftarrow$ mean of $R$
+\State $q_m \leftarrow \alpha q_0 + \beta\, centroid$
+\State \Return Retrieve results from $D$ using $q_m$
+\end{algorithmic}
+\end{algorithm}
+\end{tcolorbox}
+\normalsize
+\end{frame}
+
+\begin{frame}{Xử lý và Indexing}
+\vspace{-1em}
+\begin{columns}[T,onlytextwidth]
+\column{0.54\textwidth}
+\begin{block}{Tiền xử lý}
+\begin{itemize}
+    \item Regex Tokenize $\rightarrow$ lowercase $\rightarrow$ stopword removal $\rightarrow$ Porter Stemming
+\end{itemize}
+\end{block}
+
+\column{0.44\textwidth}
+\begin{block}{Indexing}
+\begin{itemize}
+    \item \textbf{Inverted Index}: $Index[\text{term}] \rightarrow$ Postings list $(\text{doc\_id}, tf)$
+    \item \textbf{BM25F}: $Index\_F[\text{term}] \rightarrow$ (doc\_id, tf dictionary theo field)
+\end{itemize}
+\end{block}
+\end{columns}
+
+\vspace{0.7em}
+\vspace{-0.2em}
+\centering
+\footnotesize
+\colorbox{lightblue}{Tập dữ liệu: 5.183 documents, 300 queries (SciFact)}
+\end{frame}
+
+\begin{frame}{Tham số và chỉ số đánh giá}
+\begin{columns}[T,onlytextwidth]
+\column{0.49\textwidth}
+\begin{block}{Thông số}
+\begin{itemize}
+    \item $k_1=1.2$, $b=0.75$ (BM25)
+    \item $w_{title}=2.0,\  w_{text}=1.0$ (BM25F)
+    \item $\alpha=1.0,\, \beta=0.3,\, K=10$ (PRF)
+\end{itemize}
+\end{block}
+
+\column{0.49\textwidth}
+\begin{block}{Chỉ số}
+\begin{itemize}
+    \item Precision@K: Độ chính xác top-$K$
+    \item Recall@K: Tỷ lệ hồi tưởng top-$K$
+    \item MAP: Trung bình AP trên toàn bộ truy vấn
+\end{itemize}
+\end{block}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Kết quả thực nghiệm}
+\begin{table}
+\centering
+\renewcommand{\arraystretch}{1.5}
+\setlength{\tabcolsep}{15pt}
+\large
+\rowcolors{2}{rowblue1}{rowblue2}
+\begin{tabular}{>{\bfseries}l c c c}
+\toprule
+Phương pháp & P@1 & Recall@10 & MAP \\
+\midrule
+BM25 Baseline & 0.5600 & 0.8202 & 0.6480 \\
+BM25F & 0.5633 & 0.8202 & 0.6524 \\
+BM25 + PRF & 0.5133 & 0.8203 & 0.6139 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\vspace{.6em}
+\begin{itemize}
+    \item \textbf{BM25F} cải thiện chỉ số MAP so với BM25, nhờ tận dụng thông tin từ title.
+    \item \textbf{PRF} giúp tăng Recall nhưng lại làm giảm Precision@1 và MAP, có thể do việc thêm các term không liên quan khiến truy vấn bị lệch chủ đề.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Kết luận}
+\begin{block}{Tóm tắt}
+\begin{itemize}
+    \item \textbf{BM25F} đạt kết quả tốt nhất, cho thấy việc tận dụng thông tin từ nhiều field giúp cải thiện hiệu quả truy xuất.
+    \item \textbf{PRF} giúp tăng Recall nhưng có thể làm giảm Precision và MAP nếu không kiểm soát tốt việc mở rộng truy vấn; do đó, cần áp dụng kỹ thuật lọc term phù hợp để tránh truy vấn bị lệch chủ đề.
+\end{itemize}
+\end{block}
+\vspace{1em}
+\begin{block}{Hướng cải thiện}
+\begin{itemize}
+    \item Kết hợp các mô hình biểu diễn ngữ nghĩa hiện đại như BERT để cải thiện chất lượng truy vấn và kết quả truy xuất.
+    \item Ứng dụng học sâu hoặc mô hình rerank để tăng khả năng nhận diện văn bản liên quan.
+    \item Triển khai hệ thống trên nhiều tập dữ liệu khác nhau.
+\end{itemize}
+\end{block}
+\end{frame}
+
+\end{document}
