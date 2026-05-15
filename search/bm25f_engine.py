@@ -4,61 +4,70 @@ class BM25FRanker:
     def __init__(self, indexer, k1=1.5, b_title=0.8, b_text=0.75, w_title=2.0, w_text=1.0):
         self.indexer = indexer
         self.k1 = k1
-        self.B = {'title': b_title, 'text': b_text}
-        self.W = {'title': w_title, 'text': w_text}
+        self.b = {'title': b_title, 'text': b_text}
+        self.w = {'title': w_title, 'text': w_text}
         self.fields = ['title', 'text']
-        self.avg_lengths = self._calculate_avg_len()
+        self.avg_lengths = self._get_avg_lengths()
         self.doc_count = len(self.indexer.doc_lengths)
-        
-    def _calculate_avg_len(self):
-        total_len = {'title': 0, 'text': 0}
-        for lengths in self.indexer.doc_lengths.values():
-            if sum(lengths.values()) == 0:
-                continue
-            for f in self.fields:
-                total_len[f] += lengths.get(f, 0)
-        
-        doc_count = len(self.indexer.doc_lengths)
-        if doc_count == 0: return {'title': 1, 'text': 1}
-        return {f: total_len[f] / doc_count for f in self.fields}
+
+    def _get_avg_lengths(self):
+        avg_lengths = {}
+        count = len(self.indexer.doc_lengths)
+        total_title = 0
+        total_text = 0
+        for doc in self.indexer.doc_lengths.values():
+            total_title += doc.get('title', 0)
+            total_text += doc.get('text', 0)
+        if count == 0:
+            avg_lengths['title'] = 1
+            avg_lengths['text'] = 1
+        else:
+            avg_lengths['title'] = total_title / count
+            avg_lengths['text'] = total_text / count
+        return avg_lengths
 
     def _idf(self, df):
-        # Tính IDF sử dụng công thức chuẩn của BM25
         return math.log((self.doc_count - df + 0.5) / (df + 0.5) + 1.0)
-        
+
     def calculate_score(self, query):
         tokens = self.indexer.tokenize(query)
-        scores = {doc_id: 0.0 for doc_id in self.indexer.doc_lengths.keys()}
-        
+        scores = {}
+        for doc_id in self.indexer.doc_lengths.keys():
+            scores[doc_id] = 0.0
+
         for token in tokens:
             if token not in self.indexer.inverted_index:
                 continue
-                
-            posting_list = self.indexer.inverted_index[token]
-            df = len(posting_list)
+
+            posting = self.indexer.inverted_index[token]
+            df = len(posting)
             idf = self._idf(df)
-            
-            for doc_id, tf_fields in posting_list.items():
+
+            for doc_id in posting:
+                tf_fields = posting[doc_id]
                 doc_lens = self.indexer.doc_lengths[doc_id]
                 w_td = 0.0
-                
-                # Tính trọng số w_{t,d} cho tất cả các field
-                for f in self.fields:
-                    tf_t_d_c = tf_fields.get(f, 0)
-                    len_d_c = doc_lens.get(f, 0)
-                    avg_len_c = self.avg_lengths[f] or 1
-                    
-                    B_c = self.B[f]
-                    W_c = self.W[f]
-                    
-                    # Chuẩn hóa tần suất xuất hiện với độ dài field
-                    norm_tf = tf_t_d_c / (1.0 + B_c * ((len_d_c / avg_len_c) - 1.0))
-                    w_td += W_c * norm_tf
-                
-                # Điểm BM25
-                score = (w_td / (self.k1 + w_td)) * idf
+
+                for field in self.fields:
+                    tf = tf_fields.get(field, 0)
+                    length = doc_lens.get(field, 0)
+                    avg_length = self.avg_lengths[field]
+                    b = self.b[field]
+                    w = self.w[field]
+                    div = 1.0 + b * (length / avg_length - 1.0)
+                    if div == 0:
+                        norm_tf = 0
+                    else:
+                        norm_tf = tf / div
+                    w_td += w * norm_tf
+
+                numerator = w_td
+                denominator = self.k1 + w_td
+                if denominator == 0:
+                    score = 0
+                else:
+                    score = (numerator / denominator) * idf
                 scores[doc_id] += score
-                
-        # Sắp xếp kết quả
-        ranked_docs = sorted(scores.items(), key=lambda x: x[1], reverse=True)
-        return ranked_docs
+
+        ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+        return ranked
