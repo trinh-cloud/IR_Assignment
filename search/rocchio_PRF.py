@@ -64,9 +64,14 @@ class RocchioPRF:
         
         expanded_terms = self.extract_relevant_terms(top_docs, top_term_count, banned_tokens)
 
-        # Lặp query gốc 3 lần để đảm bảo BM25 giữ độ ưu tiên rất cao cho câu hỏi ban đầu (Alpha lớn)
-        boosted_original_query = " ".join([query_text] * 3) 
-        added_query_processed = " ".join(expanded_terms)
+        # Chuyển đổi trọng số alpha, beta thành số lần lặp (tỉ lệ hệ số)
+        scale = 1.0 / min(self.alpha, self.beta) if min(self.alpha, self.beta) > 0 else 1.0
+        alpha_weight = max(1, int(round(self.alpha * scale)))
+        beta_weight = max(1, int(round(self.beta * scale)))
+
+        boosted_original_query = " ".join([query_text] * alpha_weight) 
+        # Nhân danh sách từ mở rộng theo số lần lặp Beta
+        added_query_processed = " ".join(expanded_terms * beta_weight)
         
         expanded_query = f"{boosted_original_query} {added_query_processed}"
         return expanded_query

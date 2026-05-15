@@ -18,9 +18,9 @@ Bám sát kiến trúc 4 lớp chuẩn mực:
 Kết quả đối chiếu 3 cấu hình thuật toán trên 300 claims của tập Benchmarking:
 | Configuration       | mP@1       | mP@10      | mRecall@10 | MAP        |
 |---------------------|------------|------------|------------|------------|
-| C1: BM25 Standard   | 0.5567     | 0.0893     | 0.8122     | 0.6469     |
-| C2: BM25F           | 0.5733     | 0.0893     | 0.8122     | 0.6513     |
-| C3: BM25 + PRF      | 0.5567     | 0.0910     | 0.8220     | 0.6502     |
+| C1: BM25 Standard   | 0.5600     | 0.0907     | 0.8202     | 0.6480     |
+| C2: BM25F           | 0.5633     | 0.0907     | 0.8202     | 0.6524     |
+| C3: BM25 + PRF      | 0.5600     | 0.0920     | 0.8277     | 0.6512     |
 
 **Nhận xét (Có giá trị cho báo cáo):**
 1. Mô hình **BM25F** cho kết quả tốt nhất. Khẳng định chân lý trong IR khoa học: "Thông tin ở Tiêu đề đóng vai trò bao quát giá trị nhất". Bằng cách đặt $W_{title}=2$, thuật toán đã kéo những tài liệu chạm đúng keyword trên tiêu đề lên rank 1 (P@1 cao nhất đạt 0.5733), dẫn đến MAP đạt đỉnh (0.6513).

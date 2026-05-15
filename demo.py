@@ -43,7 +43,7 @@ def main():
         w_title=BM25F_W_TITLE, 
         w_text=BM25F_W_TEXT
     )
-    rocchio = RocchioPRF(indexer_standard)
+    rocchio = RocchioPRF(indexer_standard, alpha=ROCCHIO_ALPHA, beta=ROCCHIO_BETA)
     
     print("\n✅ Khởi tạo thành công!")
     while True:
