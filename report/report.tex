@@ -298,14 +298,14 @@ Bảng \ref{tab:results} ghi lại kết quả trên bộ SciFact:
 \midrule
 C1: BM25 standard      & 0.5600       & 0.0907        & 0.8202             & 0.6480       \\
 C2: BM25F              & 0.5633       & 0.0907        & 0.8202             & 0.6524       \\
-C3: BM25 + PRF         & 0.5600       & 0.0920        & 0.8277             & 0.6512       \\
+C3: BM25 + PRF         & 0.5600       & 0.0923        & 0.8283             & 0.6516       \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 C2 (BM25F) cho MAP đạt 0.6524, nhỉnh hơn C1 (0.6480). Giá trị này có được nhờ trọng số title $w_{title}=2.0$ làm tăng ảnh hưởng các term quan trọng từ title. P@1 ở C2 (0.5633) cũng là con số cao nhất, tiếp tục chứng minh việc hiểu cấu trúc văn bản là rất quan trọng để nâng cao độ chính xác Top 1.
 
-Bên cạnh đó, C3 (BM25 + PRF) cũng cho sự cải thiện đáng kể theo một hướng khác: recall@10 tăng lên 0.8277, P@10 tăng đạt 0.0920 và MAP đạt 0.6512. Bằng phương pháp sử dụng TF-IDF chắt lọc từ khóa và chặn stopwords từ tài liệu Top 1, phương pháp này đã khắc phục hoàn toàn điểm yếu query drift (trôi dạt ngữ nghĩa), từ đó vớt được thêm tài liệu đúng một cách an toàn mà vẫn giữ nguyên được P@1 như hệ thống gốc.
+Bên cạnh đó, C3 (BM25 + PRF) cũng cho sự cải thiện đáng kể theo một hướng khác: recall@10 tăng lên 0.8283, P@10 tăng đạt 0.0923 và MAP đạt 0.6516. Bằng phương pháp sử dụng TF-IDF chắt lọc từ khóa và chặn stopwords từ tài liệu Top 1, phương pháp này đã khắc phục hoàn toàn điểm yếu query drift (trôi dạt ngữ nghĩa), từ đó vớt được thêm tài liệu đúng một cách an toàn mà vẫn giữ nguyên được P@1 như hệ thống gốc.
 
 \section{Kết luận}
 Cả hai hướng tiếp cận nâng cao đều cho thấy hiệu quả thiết thực. BM25F với trọng số phân tách trường dữ liệu ($w_{title}=2.0$) đã chinh phục được đỉnh của MAP và Precision@1, cung cấp kết quả xếp hạng top đầu chính xác nhất. Ngược lại, thông qua kỹ thuật trích xuất bằng TF-IDF có chọn lọc, PRF (Rocchio) đẩy bật được khả năng thu hồi (Recall) và duy trì sự ổn định của MAP mà không bị ảnh hưởng bởi nhiễu.
