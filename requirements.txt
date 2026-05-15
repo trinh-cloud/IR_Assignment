@@ -1,3 +1,4 @@
 ir_datasets
 nltk
 datasets
+streamlit

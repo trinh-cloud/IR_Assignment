@@ -30,7 +30,7 @@ def run_evaluation_pipeline():
         w_title=BM25F_W_TITLE, 
         w_text=BM25F_W_TEXT
     )
-    rocchio = RocchioPRF(indexer_standard)
+    rocchio = RocchioPRF(indexer_standard, alpha=ROCCHIO_ALPHA, beta=ROCCHIO_BETA)
     evaluator = Evaluator()
     
     configs = ["C1: BM25 Standard", "C2: BM25F", "C3: BM25 + PRF"]
