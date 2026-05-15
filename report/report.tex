@@ -32,7 +32,20 @@
 
 \input{Bia.tex}
 
+% Thêm một trang mới cho bảng nhiệm vụ thành viên
 \newpage
+\begin{center}
+    \section*{Bảng phân công và mức độ hoàn thành công việc}
+    \vspace{2em}
+    \begin{tabular}{|>{\raggedright\arraybackslash}p{4cm}|>{\raggedright\arraybackslash}p{8cm}|>{\centering\arraybackslash}p{2.5cm}|}
+        \hline
+        \textbf{Thành viên} & \textbf{Nhiệm vụ} & \textbf{Hoàn thành} \\ \hline
+        Trần Đức Trình & Code preprocessing, indexing, BM25F. Thiết kế slide, viết báo cáo & 100\% \\ \hline
+        Nguyễn Ngọc Quang & Code BM25, BM25 + PRF, evaluating. Thiết kế demo & 100\% \\ \hline
+    \end{tabular}
+\end{center}
+\newpage
+
 \tableofcontents
 \newpage
 \listoftables
@@ -104,6 +117,20 @@ $df_t$: số tài liệu chứa $t$ \\
 \end{algorithmic}
 \end{algorithm}
 
+\begin{itemize}
+    \item \textbf{Chú thích:}
+    \begin{itemize}
+        \item $Q$: truy vấn đầu vào, $t$: một thuật ngữ thuộc truy vấn.
+        \item $Index$: inverted index ánh xạ mỗi từ ra danh sách các cặp (d, tf), với $d$ là doc-id văn bản, $tf$ là tần suất từ $t$ trong tài liệu $d$.
+        \item $P\_list$: postings list các tài liệu chứa $t$; $df_t$ là số tài liệu chứa $t$.
+        \item $IDF$: độ đo tầm quan trọng của một thuật ngữ trong toàn bộ tập tài liệu.
+        \item $L_d$: độ dài tài liệu $d$; $L_{ave}$: độ dài trung bình của toàn bộ tập tài liệu.
+        \item $k_1, b$: tham số tuning của BM25.
+    \end{itemize}
+\end{itemize}
+
+Với mỗi term trong truy vấn $Q$, duyệt qua postings list trong inverted index để tính toán score BM25 cho từng tài liệu ($d$) có chứa $t$. Tổng điểm score của một tài liệu là tổng điểm của tất cả các term truy vấn xuất hiện trong tài liệu đó.
+
 \subsection{Cấu trúc đa trường BM25F}
 BM25F mở rộng BM25 cho tài liệu có nhiều trường như title, abstract, body. Các trường này có độ dài và độ quan trọng khác nhau. Hệ số $w_f$ điều chỉnh trọng số cho từng trường. Tham số $b_f$ dùng để chuẩn hóa độ dài riêng từng trường \cite{manning2008}.
 \begin{equation}
@@ -144,6 +171,19 @@ $L_{ave,f}$: trung bình chiều dài trường $f$ \\
 \end{algorithmic}
 \end{algorithm}
 
+\begin{itemize}
+    \item \textbf{Chú thích:}
+    \begin{itemize}
+        \item $Q$: truy vấn; $t$: một thuật ngữ trong truy vấn; $f$: tên trường (field) như "title", "abstract".
+        \item $Index\_F$: inverted index đa trường, ánh xạ mỗi term đến danh sách (doc-id, tf\_dict), với $tf\_dict$ lưu số lần xuất hiện từng field.
+        \item $W[f]$, $B[f]$: trọng số và tham số b cho trường $f$.
+        \item $L_{d,f}$: độ dài trường $f$ của tài liệu $d$, $L_{ave, f}$: độ dài trung bình trường $f$ toàn bộ tập.
+        \item $\tilde{tf}$: tổng weighted-normalized TF qua tất cả các field.
+    \end{itemize}
+\end{itemize}
+
+Với mỗi term truy vấn, tính tổng tần suất xuất hiện normalized và weighted qua tất cả các field của tài liệu $d$. Điểm BM25F của tài liệu lấy IDF nhân với công thức tổng hợp qua trường dữ liệu. Lặp với tất cả các term của truy vấn và cộng điểm qua các tài liệu ứng viên.
+
 \subsection{Pseudo-relevance feedback (PRF)}
 PRF sử dụng Rocchio để mở rộng truy vấn. Lấy $K$ tài liệu đứng đầu làm giả định relevant. Rocchio điều chỉnh vector truy vấn theo hướng trung bình các vector này. Tham số $\alpha$ kiểm soát tỷ lệ truy vấn gốc, $\beta$ kiểm soát phần phản hồi \cite{manning2008}.
 \begin{equation}
@@ -176,6 +216,18 @@ $\vec{d}$: vector tài liệu $d$ \\
 \State \Return $Results_{PRF}$
 \end{algorithmic}
 \end{algorithm}
+
+\begin{itemize}
+    \item \textbf{Chú thích:}
+    \begin{itemize}
+        \item $Q$: truy vấn đầu vào; $Results$: danh sách kết quả ban đầu; $D_{top}$: $K$ tài liệu đầu có điểm cao nhất được xem là relevant.
+        \item $Centroid$: vector trung bình của các tài liệu $D_{top}$; $Q_{orig}$: vector hóa truy vấn gốc (dạng BoW hoặc tf-idf).
+        \item $\alpha$, $\beta$: tham số điều chỉnh trọng số của truy vấn gốc và phần feedback.
+        \item $Q_m$: truy vấn mở rộng (vector mới sau Rocchio).
+    \end{itemize}
+\end{itemize}
+
+Đầu tiên truy vấn với $Q$ để lấy $K$ tài liệu top. Tính vector trung bình cộng các tài liệu này, kết hợp với vector hóa truy vấn gốc bằng tham số $\alpha$ và $\beta$. Dùng vector mới $Q_m$ để truy vấn lại nhằm mở rộng và đưa thêm kiến thức.
 
 \textit{Ghi chú cài đặt:} Trong mã nguồn, việc mở rộng truy vấn được xấp xỉ bằng cách lặp truy vấn gốc 3 lần (tương đương tăng trọng số $\alpha$) và cộng thêm các term mở rộng từ Top-$K$ sau khi được chấm điểm TF-IDF và lọc stopwords. Cách này phù hợp với BM25 vì tần suất xuất hiện trong truy vấn ảnh hưởng trực tiếp đến điểm số.
 
